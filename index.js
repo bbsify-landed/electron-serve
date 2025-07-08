@@ -1,6 +1,6 @@
+import electron from 'electron';
 import fs from 'node:fs/promises';
 import path from 'node:path';
-import electron from 'electron';
 
 // See https://cs.chromium.org/chromium/src/net/base/net_error_list.h
 const FILE_NOT_FOUND = -6;
@@ -16,15 +16,19 @@ const getPath = async (path_, file) => {
 		if (result.isDirectory()) {
 			return getPath(path.join(path_, `${file}.html`));
 		}
-	} catch {}
+	} catch { }
 };
 
 export default function electronServe(options) {
 	options = {
-		isCorsEnabled: true,
 		scheme: 'app',
 		hostname: '-',
 		file: 'index',
+		isCorsEnabled: true,
+		standard: true,
+		secure: true,
+		allowServiceWorkers: true,
+		supportFetchAPI: true,
 		...options,
 	};
 
@@ -42,7 +46,7 @@ export default function electronServe(options) {
 		const isSafe = !relativePath.startsWith('..') && !path.isAbsolute(relativePath);
 
 		if (!isSafe) {
-			callback({error: FILE_NOT_FOUND});
+			callback({ error: FILE_NOT_FOUND });
 			return;
 		}
 
@@ -50,7 +54,7 @@ export default function electronServe(options) {
 		const fileExtension = path.extname(filePath);
 
 		if (!finalPath && fileExtension && fileExtension !== '.html' && fileExtension !== '.asar') {
-			callback({error: FILE_NOT_FOUND});
+			callback({ error: FILE_NOT_FOUND });
 			return;
 		}
 
@@ -63,10 +67,10 @@ export default function electronServe(options) {
 		{
 			scheme: options.scheme,
 			privileges: {
-				standard: true,
-				secure: true,
-				allowServiceWorkers: true,
-				supportFetchAPI: true,
+				standard: options.standard,
+				secure: options.secure,
+				allowServiceWorkers: options.allowServiceWorkers,
+				supportFetchAPI: options.supportFetchAPI,
 				corsEnabled: options.isCorsEnabled,
 			},
 		},
@@ -80,8 +84,8 @@ export default function electronServe(options) {
 		session.protocol.registerFileProtocol(options.scheme, handler);
 	});
 
-	return async (window_, searchParameters) => {
+	return async (window_, searchParameters, path = "") => {
 		const queryString = searchParameters ? '?' + new URLSearchParams(searchParameters).toString() : '';
-		await window_.loadURL(`${options.scheme}://${options.hostname}${queryString}`);
+		await window_.loadURL(`${options.scheme}://${options.hostname}${path}${queryString}`);
 	};
 }
